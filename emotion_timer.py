@@ -16,15 +16,21 @@ class EmotionLogger(QWidget):
         self.initUI()
 
     def initUI(self):
+        # Window basic settings
         self.setWindowTitle('감정 기록기')
         self.setGeometry(300, 300, 450, 450)
-        self.remaining_time = 10
+        self.remaining_time = 30  # Changed: Set initial time to 30 seconds
+        
+        # Define colors for emotion text
         self.emotion_colors = {
             '행복 😄': '#FF851B', '중립 😐': '#FFDC00', '지루함 😑': '#2ECC40',
             '우울 😢': '#0074D9', '두려움 😨': '#B10DC9', '화 😠': '#FF4136'
         }
 
+        # Main vertical layout
         main_layout = QVBoxLayout()
+        
+        # --- Emotion buttons section (2 columns, 3 rows) ---
         button_layout = QGridLayout()
         positions = [(i, j) for i in range(3) for j in range(2)]
 
@@ -38,6 +44,7 @@ class EmotionLogger(QWidget):
             button.clicked.connect(lambda checked, emo=emotion: self.log_emotion(emo))
             button_layout.addWidget(button, *position)
 
+        # --- Log display section ---
         log_label = QLabel('기록된 감정 로그:')
         log_label.setStyleSheet("font-weight: bold; margin-top: 10px;")
         
@@ -46,6 +53,7 @@ class EmotionLogger(QWidget):
         self.log_display.setStyleSheet("font-size: 14px;")
         self.log_display.setMaximumHeight(80)
 
+        # --- Action buttons section ---
         action_button_layout = QHBoxLayout()
         self.clear_button = QPushButton('로그 초기화 🗑️')
         self.clear_button.setStyleSheet("font-size: 14px; padding: 8px;")
@@ -63,11 +71,13 @@ class EmotionLogger(QWidget):
         action_button_layout.addWidget(self.export_button)
         action_button_layout.addWidget(self.undo_button)
 
+        # --- Add widgets to main layout (with proportions) ---
         main_layout.addLayout(button_layout, 2)
         main_layout.addWidget(log_label)
         main_layout.addWidget(self.log_display, 1)
         main_layout.addLayout(action_button_layout)
-
+        
+        # --- Timer display label ---
         self.timer_label = QLabel(f"다음 알림까지: {self.remaining_time}초")
         self.timer_label.setStyleSheet("margin-top: 5px; color: grey;")
         self.timer_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -76,13 +86,13 @@ class EmotionLogger(QWidget):
         self.setLayout(main_layout)
         self.load_logs()
 
-        # 10초마다 팝업을 띄우는 메인 타이머
+        # Main timer that triggers the popup every 30 seconds
         self.reminder_timer = QTimer(self)
-        self.reminder_timer.setInterval(10000)
+        self.reminder_timer.setInterval(30000)  # Changed: Set interval to 30 seconds
         self.reminder_timer.timeout.connect(self.show_reminder_popup)
         self.reminder_timer.start()
 
-        # 1초마다 라벨을 업데이트하는 카운트다운 타이머
+        # Countdown timer that updates the label every 1 second
         self.update_timer = QTimer(self)
         self.update_timer.setInterval(1000)
         self.update_timer.timeout.connect(self.update_countdown_label)
@@ -94,18 +104,22 @@ class EmotionLogger(QWidget):
         self.timer_label.setText(f"다음 알림까지: {self.remaining_time}초")
 
     def show_reminder_popup(self):
-        QApplication.beep() # 알림음 발생
+        QApplication.beep()  # Beep for notification
+        
+        # Stop the timer when the popup is shown
+        self.reminder_timer.stop()
 
         msg_box = QMessageBox(self)
         msg_box.setIcon(QMessageBox.Icon.Information)
-        msg_box.setText("주기적인 감정 기록 시간입니다!!!")
+        msg_box.setText("주기적인 감정 기록 시간입니다!")
         msg_box.setWindowTitle("감정 기록 알림")
         msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
-        msg_box.exec()
+        msg_box.exec() # This line pauses execution until the user clicks "Ok"
         
-        # 팝업 후 타이머 초기화
-        self.remaining_time = 10
+        # After the user clicks "Ok", reset the countdown and restart the timer
+        self.remaining_time = 30  # Changed: Reset to 30 seconds
         self.timer_label.setText(f"다음 알림까지: {self.remaining_time}초")
+        self.reminder_timer.start(30000)  # Changed: Restart with 30-second interval
 
     def log_emotion(self, emotion):
         timestamp = int(time.time())
@@ -117,9 +131,7 @@ class EmotionLogger(QWidget):
             self.log_display.append(f"파일 쓰기 오류: {e}")
             return
             
-        # [개선] 감정 기록 시 타이머를 10초로 초기화
-        self.remaining_time = 10 
-        self.timer_label.setText(f"다음 알림까지: {self.remaining_time}초")
+        # Timer reset logic is not here, as requested.
         
         self.load_logs()
 
@@ -132,7 +144,7 @@ class EmotionLogger(QWidget):
             with open(self.log_file, 'r', encoding='utf-8') as f:
                 reader = csv.reader(f)
                 logs = list(reader)
-                # 로그를 역순으로 표시 (최신순)
+                # Display logs in reverse order (most recent first)
                 for row in reversed(logs):
                     if len(row) == 2:
                         timestamp, emotion = row
@@ -141,7 +153,7 @@ class EmotionLogger(QWidget):
                         self.log_display.append(log_entry)
         except (IOError, ValueError) as e:
             self.log_display.append(f"로그 파일 읽기 오류: {e}")
-        # 스크롤을 맨 위로 이동
+        # Move scrollbar to the top
         self.log_display.verticalScrollBar().setValue(0)
 
     def export_to_csv(self):
@@ -161,7 +173,7 @@ class EmotionLogger(QWidget):
                             timestamp, emotion = row
                             readable_time = datetime.datetime.fromtimestamp(int(timestamp)).strftime('%Y-%m-%d %H:%M:%S')
                             writer.writerow([timestamp, emotion, readable_time])
-                self.log_display.append(f"\n>> 로그가 '{file_path}'에 저장되었습니다.")
+                    self.log_display.append(f"\n>> 로그가 '{file_path}'에 저장되었습니다.")
             except (IOError, ValueError) as e:
                 self.log_display.append(f"\n>> 파일 내보내기 오류: {e}")
 
@@ -169,7 +181,7 @@ class EmotionLogger(QWidget):
         if not os.path.exists(self.log_file):
             self.log_display.append("\n>> 초기화할 로그가 없습니다.")
             return
-        reply = QMessageBox.question(self, '로그 초기화 확인', '정말로 모든 감정 기록을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.', QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        reply = QMessageBox.question(self, '초기화 확인', '정말로 모든 감정 기록을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.', QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
             try:
                 os.remove(self.log_file)
@@ -187,7 +199,7 @@ class EmotionLogger(QWidget):
             if logs:
                 logs.pop()
             else:
-                self.log_display.append("\n>> 로그가 비어있습니다.")
+                self.log_display.append("\n>> 로그 파일이 비어있습니다.")
                 return
             with open(self.log_file, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
